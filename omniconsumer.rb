@@ -1,16 +1,12 @@
+require 'yaml'
 require 'xmpp4r'
 require 'amqp'
 require 'mq'
 require 'xmpp4r/client'
+require 'xmpp4r/roster'
 
 include Jabber
 Jabber::debug = false
-
-class Settings
-	def omnibot_user; 'quark.notify@jabber.omniverse.ru'; end
-	def omnibot_pass; 'YWCA7Tyron'; end
-	def notify_jid; 'theirix@gmail.com'; end
-end
 
 class AttemptCounter
 	def report
@@ -35,8 +31,25 @@ end
 
 class JabberBot
 
+	def dump_presence p
+		p ? "Presence status=#{p.status} type=#{p.type} show=#{p.show} from=#{p.from} to=#{p.to} xml=(#{p.to_s})" : "nil"
+	end
+
 	def on_message_handler m
 		puts "Got jabber message from #{m.from}:\n#{m.body}\n."
+	end
+
+	def on_presence_callback old_presence, new_presence
+		puts "Presence changed:\n...old #{dump_presence old_presence}\n...new #{dump_presence new_presence}"
+		if old_presence.from.strip == @subscriber
+			@subscriber_online = check_presence? old_presence
+			puts "Subscriber #{@subscriber} is #{@subscriber_online ? "ready" : "not ready"}"
+			pump_messages if @subscriber_online
+		end
+	end
+
+	def on_subscripton_request_callback item, pres
+		puts "Subscription request item=#{item} pres=#{dump_presence pres}"
 	end
 
 	def on_exception_handler e, stream, sym_where
@@ -94,9 +107,24 @@ class JabberBot
 
 		if @client.is_connected?
 			@attempt_counter = nil
+			@roster = Roster::Helper.new(@client)
+			@roster.add_subscription_request_callback { |item, pres| on_subscripton_request_callback item, pres }
 		end
 
 		puts "Client #{@client.is_connected? ? 'is' : 'isn\'t'} connected"
+	end
+
+	def check_presence? presence
+		raise 'No subscriber' unless @subscriber
+
+		puts "Subscriber #{@subscriber} is #{presence.show ? presence.show : 'online'}" 
+		presence.show == nil || presence.show == :chat
+	end
+
+	def pump_messages
+		while msg = @messages.shift
+			send msg
+		end
 	end
 
 public
@@ -112,8 +140,13 @@ public
 		@ignore_reconnect = false
 		@reconnect_pause = 10
 		@reconnect_long_pause = 60*15
+
+		@messages = []
+		@subscriber_online = false
+
 		@client.on_exception { |e, stream, sym_where| on_exception_handler(e, stream, sym_where) }
 		@client.add_message_callback { |m| on_message_handler m }
+		@client.add_presence_callback { |from, to| on_presence_callback from, to }
 	end
 
 	def connect
@@ -124,8 +157,43 @@ public
 		@client.close
 	end
 
-	def send_message to, body
-		msg = Message::new(to, body)
+	def set_subscriber jid
+		@subscriber = jid
+	end
+
+	def add_message message
+		puts "Register a message, " + (@subscriber_online ? "should send immediately" : "will send later")
+		@messages << message
+		pump_messages if @subscriber_online
+	end
+
+	def same_day? t1, t2
+		t1.year == t2.year && t1.month == t2.month && t1.day == t2.day
+	end
+
+	def say_when_human orig, now
+		if same_day? now, orig
+			amount = now - orig
+			if amount < 60*5
+				return "just now"
+			elsif amount < 60*60
+				return "a hour ago"
+			elsif amount < 60*60*6
+				return amount.div(60).to_s + " hours ago"
+			end
+		end
+		return orig.to_s
+	end
+
+	def send message
+		raise 'Not connected' unless @client.is_connected?
+
+		puts "Sending a message..."
+		orig = message[0]
+		content = message[1]
+
+		body = "Omnibot reported " + say_when_human(orig, Time.now) + ":\n" + content.to_s
+		msg = Message::new(@subscriber, body)
 		msg.type = :chat
 		@client.send(msg)
 	end
@@ -133,7 +201,7 @@ end
 
 Signal.trap('INT') { AMQP.stop{ EM.stop } }
 
-settings = Settings.new
+config = YAML.load_file('config.yaml')["config"]
 
 AMQP.start do
 	# setup amqp
@@ -142,18 +210,30 @@ AMQP.start do
 	queue = mq.queue("omnibot-consumerqueue", :exclusive => true)
 	queue.bind(exchange)
 
-	puts "Setup jabber"
-	omnibot = JabberBot.new(JID::new(settings.omnibot_user), settings.omnibot_pass)
-	omnibot.timer_provider = EM
-	omnibot.connect
+	begin
+		puts "Setup jabber"
+		omnibot = JabberBot.new(JID::new(config['omnibotuser']), config['omnibotpass'])
+		omnibot.timer_provider = EM
+		omnibot.set_subscriber JID::new(config['notifyjid'])
+		omnibot.connect
+	rescue
+		puts "Jabber setup error: #{$!}"
+		AMQP.stop{ EM.stop }
+	end
 
 	puts "==== AMQP is ready"
 
 	queue.subscribe do |message|
-		text = Marshal.load(message)
-		puts "#{Time.now}: #{text}"
-		message_text = 'omnibot reports: ' + text
-		omnibot.send_message(settings.notify_jid, message_text)
+		begin
+			omnibot.add_message [Time.now, Marshal.load(message)]
+		rescue Object => e
+			puts "Sending message error: #{e.message}"
+			puts "Trace:\n\t" + (e.backtrace ? e.backtrace.join("\n\t") : "")
+			puts "Ignoring..."
+		end
 	end
 end
+
+puts "End"
+
 

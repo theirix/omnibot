@@ -1,0 +1,4 @@
+config:
+  omnibotuser: bot@example.com
+  omnibotpass: secret
+  notifyjid: owner@example.com
