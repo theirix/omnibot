@@ -65,6 +65,9 @@ class JabberBot
 	def safe_reconnect
 		begin
 			reconnect
+		rescue ClientAuthenticationFailure => e
+			puts "Authentification error: #{e.class}: #{e}"
+			raise 
 		rescue Exception => e
 			puts "Reconnect hard error: #{e.class}: #{e}"
 			on_generic_exception_handler e
