@@ -8,6 +8,7 @@ require 'xmpp4r/roster'
 include Jabber
 Jabber::debug = false
 
+# Helper class for counting reconnect attempts
 class AttemptCounter
 	def report
 		puts "AttemptCounter: try #{@counter} of #{@max_attempts}"
@@ -29,6 +30,7 @@ public
 	end
 end
 
+# Jabber bot with reconnection and dnd-care logic
 class JabberBot
 
 	def dump_presence p
@@ -135,10 +137,10 @@ class JabberBot
 	def say_when_human orig, now
 		if same_day? now, orig
 			amount = now - orig
-			if amount < 60*5
+			if amount < 60
 				return "just now"
 			elsif amount < 60*60
-				return "a hour ago"
+				return "less than a hour ago"
 			elsif amount < 60*60*6
 				return amount.div(60).to_s + " hours ago"
 			end
@@ -212,6 +214,63 @@ public
 	end
 end
 
+
+# Send to jabber user result of a daily command
+class PeriodicCommand
+
+	def on_first_timer
+		puts "Okay, it's near of midnight"
+		on_periodic_timer
+		@timer_provider.add_periodic_timer(24*3600) { on_periodic_timer }
+	end
+
+	def on_periodic_timer
+		puts "Reporting command #{@command}"
+		body = `#{@command}`
+		raise 'Error launching command ' if $? != 0
+		message_body = "Results of daily executed command #{@command}:\n" + body
+		@jabber_messenger.call message_body
+	end
+
+public
+	attr_writer :timer_provider
+
+	def initialize command, pause
+		@command = command
+		@pause = pause
+
+		raise 'Wrong command' if (command == nil or command == '')
+	end
+
+	def start
+		`command -v #{@command}`
+		if $? != 0
+			puts "Command #{@command} is not available"
+		else
+			now = Time.now
+			next_report_time = Time.local(now.year, now.month, now.day+1, 1, 0, 0)
+			next_report_time = next_report_time + @pause
+			@timer_provider.add_timer(next_report_time - now) { on_first_timer }
+		end
+	end
+
+	def set_jabber_messenger &block
+		@jabber_messenger = block
+	end
+end
+
+# no-throw message wrapper
+def send_message omnibot, message
+	begin
+		omnibot.add_message [Time.now, message]
+	rescue Object => e
+		puts "Sending message error: #{e.message}"
+		puts "Trace:\n\t" + (e.backtrace ? e.backtrace.join("\n\t") : "")
+		puts "Ignoring..."
+	end
+end
+
+# Main AMQP loop
 def amqp_loop config
 	AMQP.start do
 		# setup amqp
@@ -221,26 +280,31 @@ def amqp_loop config
 		queue.bind(exchange)
 
 		begin
-			puts "Setup jabber"
+			puts "Setup omnibot..."
 			omnibot = JabberBot.new(JID::new(config['omnibotuser']), config['omnibotpass'])
 			omnibot.timer_provider = EM
 			omnibot.set_subscriber JID::new(config['notifyjid']), config['notifyresource']
 			omnibot.connect
+
+			pause = 0
+			[config['periodiccommands']].flatten.each do |command|
+				puts "Setup command #{command}..."
+				periodic_command = PeriodicCommand.new command, pause
+				periodic_command.timer_provider = EM
+				periodic_command.set_jabber_messenger { |message| send_message omnibot, message }
+				periodic_command.start
+				pause += 20
+			end
+
 		rescue
-			puts "Jabber setup error: #{$!}"
+			puts "Services setup error: #{$!}"
 			AMQP.stop{ EM.stop }
 		end
 
 		puts "==== AMQP is ready"
 
 		queue.subscribe do |message|
-			begin
-				omnibot.add_message [Time.now, Marshal.load(message)]
-			rescue Object => e
-				puts "Sending message error: #{e.message}"
-				puts "Trace:\n\t" + (e.backtrace ? e.backtrace.join("\n\t") : "")
-				puts "Ignoring..."
-			end
+			send_message omnibot, message
 		end
 	end
 end

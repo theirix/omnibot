@@ -3,3 +3,4 @@ config:
   omnibotpass: secret
   notifyjid: owner@example.com
   notifyresource: Adium.*
+  periodiccommands: [ 'vnstat' ]
