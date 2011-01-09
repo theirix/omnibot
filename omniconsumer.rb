@@ -39,9 +39,13 @@ class JabberBot
 		puts "Got jabber message from #{m.from}:\n#{m.body}\n."
 	end
 
+	def is_needed_user? jid
+		jid.strip == @subscriber && @subscriber_resource.match((jid.resource or ''))
+	end
+
 	def on_presence_callback old_presence, new_presence
 		puts "Presence changed:\n...old #{dump_presence old_presence}\n...new #{dump_presence new_presence}"
-		if old_presence.from.strip == @subscriber
+		if is_needed_user? old_presence.from
 			@subscriber_online = check_presence? old_presence
 			puts "Subscriber #{@subscriber} is #{@subscriber_online ? "ready" : "not ready"}"
 			pump_messages if @subscriber_online
@@ -121,6 +125,25 @@ class JabberBot
 		presence.show == nil || presence.show == :chat
 	end
 
+	def same_day? t1, t2
+		t1.year == t2.year && t1.month == t2.month && t1.day == t2.day
+	end
+
+	def say_when_human orig, now
+		if same_day? now, orig
+			amount = now - orig
+			if amount < 60*5
+				return "just now"
+			elsif amount < 60*60
+				return "a hour ago"
+			elsif amount < 60*60*6
+				return amount.div(60).to_s + " hours ago"
+			end
+		end
+		return orig.to_s
+	end
+
+
 	def pump_messages
 		while msg = @messages.shift
 			send msg
@@ -157,32 +180,19 @@ public
 		@client.close
 	end
 
-	def set_subscriber jid
+	def set_subscriber jid, resource=nil
 		@subscriber = jid
+		if resource == nil || resource == ''
+			@subscriber_resource = /.*/
+		else
+			@subscriber_resource = Regexp.new(resource)
+		end
 	end
 
 	def add_message message
 		puts "Register a message, " + (@subscriber_online ? "should send immediately" : "will send later")
 		@messages << message
 		pump_messages if @subscriber_online
-	end
-
-	def same_day? t1, t2
-		t1.year == t2.year && t1.month == t2.month && t1.day == t2.day
-	end
-
-	def say_when_human orig, now
-		if same_day? now, orig
-			amount = now - orig
-			if amount < 60*5
-				return "just now"
-			elsif amount < 60*60
-				return "a hour ago"
-			elsif amount < 60*60*6
-				return amount.div(60).to_s + " hours ago"
-			end
-		end
-		return orig.to_s
 	end
 
 	def send message
@@ -199,41 +209,47 @@ public
 	end
 end
 
-Signal.trap('INT') { AMQP.stop{ EM.stop } }
+def amqp_loop config
+	AMQP.start do
+		# setup amqp
+		mq = MQ.new
+		exchange = mq.direct('omnibot-exchange')
+		queue = mq.queue("omnibot-consumerqueue", :exclusive => true)
+		queue.bind(exchange)
 
-config = YAML.load_file('config.yaml')["config"]
-
-AMQP.start do
-	# setup amqp
-	mq = MQ.new
-	exchange = mq.direct('omnibot-exchange')
-	queue = mq.queue("omnibot-consumerqueue", :exclusive => true)
-	queue.bind(exchange)
-
-	begin
-		puts "Setup jabber"
-		omnibot = JabberBot.new(JID::new(config['omnibotuser']), config['omnibotpass'])
-		omnibot.timer_provider = EM
-		omnibot.set_subscriber JID::new(config['notifyjid'])
-		omnibot.connect
-	rescue
-		puts "Jabber setup error: #{$!}"
-		AMQP.stop{ EM.stop }
-	end
-
-	puts "==== AMQP is ready"
-
-	queue.subscribe do |message|
 		begin
-			omnibot.add_message [Time.now, Marshal.load(message)]
-		rescue Object => e
-			puts "Sending message error: #{e.message}"
-			puts "Trace:\n\t" + (e.backtrace ? e.backtrace.join("\n\t") : "")
-			puts "Ignoring..."
+			puts "Setup jabber"
+			omnibot = JabberBot.new(JID::new(config['omnibotuser']), config['omnibotpass'])
+			omnibot.timer_provider = EM
+			omnibot.set_subscriber JID::new(config['notifyjid']), config['notifyresource']
+			omnibot.connect
+		rescue
+			puts "Jabber setup error: #{$!}"
+			AMQP.stop{ EM.stop }
+		end
+
+		puts "==== AMQP is ready"
+
+		queue.subscribe do |message|
+			begin
+				omnibot.add_message [Time.now, Marshal.load(message)]
+			rescue Object => e
+				puts "Sending message error: #{e.message}"
+				puts "Trace:\n\t" + (e.backtrace ? e.backtrace.join("\n\t") : "")
+				puts "Ignoring..."
+			end
 		end
 	end
 end
 
-puts "End"
+config_file = (ARGV[0] or 'config.yaml')
+config = YAML.load_file(config_file)["config"]
 
+Signal.trap('INT') do
+	puts "It's a trap, should go..."
+	AMQP.stop{ EM.stop }
+end
 
+amqp_loop config
+
+puts "Exited"
