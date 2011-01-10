@@ -28,15 +28,10 @@ module OmniBot
 		end
 
 		def start
-			`command -v #{@command}`
-			if $? != 0
-				OmniLog::warn "Command #{@command} is not available"
-			else
-				now = Time.now
-				next_report_time = Time.local(now.year, now.month, now.day+1, 1, 0, 0)
-				next_report_time = next_report_time + @pause
-				@timer_provider.add_timer(next_report_time - now) { on_first_timer }
-			end
+			now = Time.now
+			next_report_time = Time.local(now.year, now.month, now.day+1, 1, 0, 0)
+			next_report_time = next_report_time + @pause
+			@timer_provider.add_timer(next_report_time - now) { on_first_timer }
 		end
 
 		def set_jabber_messenger &block
