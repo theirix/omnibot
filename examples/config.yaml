@@ -4,3 +4,4 @@ config:
   notifyjid: owner@example.com
   notifyresource: Adium.*
   periodiccommands: [ 'vnstat' ]
+	logpath: '/tmp/omnibot.log'
