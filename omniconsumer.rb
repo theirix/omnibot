@@ -1,4 +1,5 @@
 require 'yaml'
+require 'logger'
 require 'xmpp4r'
 require 'amqp'
 require 'mq'
@@ -8,16 +9,39 @@ require 'xmpp4r/roster'
 include Jabber
 Jabber::debug = false
 
+class OmniLog
+
+	def self.init_log
+		logger = Logger.new('omnibot.log')
+		logger.level = Logger::DEBUG
+		logger
+	end
+		
+	def self.log=(value)
+		@logger = value
+	end
+
+	def self.log
+		@logger
+	end
+
+	def self.debug(progname = nil, &block); @logger.debug(progname, &block); end
+	def self.info(progname = nil, &block); @logger.info(progname, &block); end
+	def self.warn(progname = nil, &block); @logger.warn(progname, &block); end
+	def self.error(progname = nil, &block); @logger.warn(progname, &block); end
+	def self.fatal(progname = nil, &block); @logger.fatal(progname, &block); end
+end
+
 # Helper class for counting reconnect attempts
 class AttemptCounter
 	def report
-		puts "AttemptCounter: try #{@counter} of #{@max_attempts}"
+		OmniLog::debug "AttemptCounter: try #{@counter} of #{@max_attempts}"
 	end
 public
 	def initialize max_attempts
 		@counter = 0
 		@max_attempts = max_attempts
-		puts "AttemptCounter inited"
+		OmniLog::debug "AttemptCounter inited"
 	end
 
 	def out_of_attempts?
@@ -30,6 +54,11 @@ public
 	end
 end
 
+def backtrace e
+	e.respond_to?(:backtrace) && e.backtrace ? e.backtrace.join("\n\t") : ""
+end
+
+
 # Jabber bot with reconnection and dnd-care logic
 class JabberBot
 
@@ -38,7 +67,7 @@ class JabberBot
 	end
 
 	def on_message_handler m
-		puts "Got jabber message from #{m.from}:\n#{m.body}\n."
+		OmniLog::debug "Got jabber message from #{m.from}:\n#{m.body}\n."
 	end
 
 	def is_needed_user? jid
@@ -46,21 +75,21 @@ class JabberBot
 	end
 
 	def on_presence_callback old_presence, new_presence
-		puts "Presence changed:\n...old #{dump_presence old_presence}\n...new #{dump_presence new_presence}"
+		OmniLog::debug "Presence changed:\n...old #{dump_presence old_presence}\n...new #{dump_presence new_presence}"
 		if is_needed_user? old_presence.from
 			@subscriber_online = check_presence? old_presence
-			puts "Subscriber #{@subscriber} is #{@subscriber_online ? "ready" : "not ready"}"
+			OmniLog::debug "Subscriber #{@subscriber} is #{@subscriber_online ? "ready" : "not ready"}"
 			pump_messages if @subscriber_online
 		end
 	end
 
 	def on_subscripton_request_callback item, pres
-		puts "Subscription request item=#{item} pres=#{dump_presence pres}"
+		OmniLog::debug "Subscription request item=#{item} pres=#{dump_presence pres}"
 	end
 
 	def on_exception_handler e, stream, sym_where
-		puts "Jabber exception happens at symbol \"#{sym_where}\": #{e}"
-		puts "stream is #{stream} vs client #{@client}"
+		OmniLog::error "Jabber exception happens at symbol \"#{sym_where}\": #{e}\nbacktrace\n#{backtrace e}"
+		OmniLog::debug "stream is #{stream} vs client #{@client}"
 		on_generic_exception_handler e
 	end
 
@@ -68,17 +97,17 @@ class JabberBot
 		begin
 			reconnect
 		rescue ClientAuthenticationFailure => e
-			puts "Authentification error: #{e.class}: #{e}"
+			OmniLog::error "Authentification error: #{e.class}: #{e}"
 			raise 
 		rescue Exception => e
-			puts "Reconnect hard error: #{e.class}: #{e}"
+			OmniLog::error "Reconnect hard error: #{e.class}: #{e}"
 			on_generic_exception_handler e
 		end
 	end
 
 	def on_generic_exception_handler e
 		if e && (e.kind_of?(ServerDisconnected) || e.class.to_s =~ /^Errno::.+/)
-			puts "No timer provider assigned" unless @timer_provider
+			OmniLog::error "No timer provider assigned" unless @timer_provider
 			# attempt counter is set when it's needed to connect
 			unless @ignore_reconnect
 				@timer_provider.add_timer(@reconnect_pause) { try_reconnect }
@@ -87,7 +116,7 @@ class JabberBot
 	end
 
 	def reconnect
-		puts 'Going to reconnect'
+		OmniLog::debug 'Going to reconnect'
 		@client.connect
 		@client.auth(@password)
 		@client.send(Presence.new.set_type(:available))
@@ -96,13 +125,13 @@ class JabberBot
 	def try_reconnect
 		return if @client.is_connected?
 
-		puts 'Called try_reconnect'
+		OmniLog::debug 'Called try_reconnect'
 		
 		@attempt_counter = AttemptCounter.new(5) unless @attempt_counter
 		@attempt_counter.increase
 
 		if @attempt_counter.out_of_attempts?
-			puts "Can't reconect too often, sleep for #{@reconnect_long_pause/60} minutes..."
+			OmniLog::warn "Can't reconect too often, sleep for #{@reconnect_long_pause/60} minutes..."
 			@attempt_counter = nil
 			@ignore_reconnect = true
 			@timer_provider.add_timer(@reconnect_long_pause) {
@@ -120,13 +149,13 @@ class JabberBot
 			@roster.add_subscription_request_callback { |item, pres| on_subscripton_request_callback item, pres }
 		end
 
-		puts "Client #{@client.is_connected? ? 'is' : 'isn\'t'} connected"
+		OmniLog::debug "Client #{@client.is_connected? ? 'is' : 'isn\'t'} connected"
 	end
 
 	def check_presence? presence
 		raise 'No subscriber' unless @subscriber
 
-		puts "Subscriber #{@subscriber} is #{presence.show ? presence.show : 'online'}" 
+		OmniLog::debug "Subscriber #{@subscriber} is #{presence.show ? presence.show : 'online'}" 
 		presence.show == nil || presence.show == :chat
 	end
 
@@ -195,7 +224,7 @@ public
 	end
 
 	def add_message message
-		puts "Register a message, " + (@subscriber_online ? "should send immediately" : "will send later")
+		OmniLog::debug "Register a message, " + (@subscriber_online ? "should send immediately" : "will send later")
 		@messages << message
 		pump_messages if @subscriber_online
 	end
@@ -203,7 +232,7 @@ public
 	def send message
 		raise 'Not connected' unless @client.is_connected?
 
-		puts "Sending a message..."
+		OmniLog::info "Sending a message..."
 		orig = message[0]
 		content = message[1]
 
@@ -219,13 +248,13 @@ end
 class PeriodicCommand
 
 	def on_first_timer
-		puts "Okay, it's near of midnight"
+		OmniLog::debug "Okay, it's near of midnight"
 		on_periodic_timer
 		@timer_provider.add_periodic_timer(24*3600) { on_periodic_timer }
 	end
 
 	def on_periodic_timer
-		puts "Reporting command #{@command}"
+		OmniLog::info "Reporting command #{@command}"
 		body = `#{@command}`
 		raise 'Error launching command ' if $? != 0
 		message_body = "Results of daily executed command #{@command}:\n" + body
@@ -245,7 +274,7 @@ public
 	def start
 		`command -v #{@command}`
 		if $? != 0
-			puts "Command #{@command} is not available"
+			OmniLog::warn "Command #{@command} is not available"
 		else
 			now = Time.now
 			next_report_time = Time.local(now.year, now.month, now.day+1, 1, 0, 0)
@@ -259,20 +288,23 @@ public
 	end
 end
 
-# no-throw message wrapper
-def send_message omnibot, message
-	begin
-		omnibot.add_message [Time.now, message]
-	rescue Object => e
-		puts "Sending message error: #{e.message}"
-		puts "Trace:\n\t" + (e.backtrace ? e.backtrace.join("\n\t") : "")
-		puts "Ignoring..."
-	end
-end
+# AMQP consumer class
 
-# Main AMQP loop
-def amqp_loop config
-	AMQP.start do
+class AMQPConsumer
+
+	def send_message message
+		begin
+			@omnibot.add_message [Time.now, message]
+		rescue Object => e
+			OmniLog::error "Sending message error: #{e.message}\ntrace:\n#{backtrace e}\nIgnoring..."
+		end
+	end
+
+	def initialize config
+		@config = config
+	end
+
+	def amqp_loop
 		# setup amqp
 		mq = MQ.new
 		exchange = mq.direct('omnibot-exchange')
@@ -280,43 +312,63 @@ def amqp_loop config
 		queue.bind(exchange)
 
 		begin
-			puts "Setup omnibot..."
-			omnibot = JabberBot.new(JID::new(config['omnibotuser']), config['omnibotpass'])
-			omnibot.timer_provider = EM
-			omnibot.set_subscriber JID::new(config['notifyjid']), config['notifyresource']
-			omnibot.connect
+			OmniLog::info "Setup omnibot..."
+			@omnibot = JabberBot.new(JID::new(@config['omnibotuser']), @config['omnibotpass'])
+			@omnibot.timer_provider = EM
+			@omnibot.set_subscriber JID::new(@config['notifyjid']), @config['notifyresource']
+			@omnibot.connect
 
 			pause = 0
-			[config['periodiccommands']].flatten.each do |command|
-				puts "Setup command #{command}..."
+			[@config['periodiccommands']].flatten.each do |command|
+				OmniLog::info "Setup command #{command}..."
 				periodic_command = PeriodicCommand.new command, pause
 				periodic_command.timer_provider = EM
-				periodic_command.set_jabber_messenger { |message| send_message omnibot, message }
+				periodic_command.set_jabber_messenger { |message| send_message message }
 				periodic_command.start
 				pause += 20
 			end
 
 		rescue
-			puts "Services setup error: #{$!}"
+			OmniLog::error "Services setup error: #{$!}"
 			AMQP.stop{ EM.stop }
 		end
 
-		puts "==== AMQP is ready"
+		OmniLog::info "==== AMQP is ready ===="
 
-		queue.subscribe do |message|
-			send_message omnibot, message
+		queue.subscribe do |msg|
+			message = Marshal.load msg
+			send_message message
 		end
 	end
+
+	# Main AMQP loop
+	def start 
+		
+		# exit hook
+		Signal.trap('INT') do
+			OmniLog::info "It's a trap, should exit..."
+			AMQP.stop{ EM.stop }
+		end
+
+		AMQP.start do
+			amqp_loop
+		end
+
+		OmniLog::info "Exited"
+	end
+
 end
 
+# entry point
 config_file = (ARGV[0] or 'config.yaml')
 config = YAML.load_file(config_file)["config"]
 
-Signal.trap('INT') do
-	puts "It's a trap, should go..."
-	AMQP.stop{ EM.stop }
-end
+log_file = (config['logpath'] or 'omnibot.log')
+OmniLog::log = Logger.new(log_file) 
+OmniLog::log.level = Logger::DEBUG
 
-amqp_loop config
+consumer = AMQPConsumer.new config
+consumer.start 
 
-puts "Exited"
+OmniLog::log.close
+
