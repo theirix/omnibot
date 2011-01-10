@@ -25,6 +25,11 @@ task :install => :build do
   system "gem install pkg/#{gemspec.name}-#{gemspec.version}"
 end
 
+desc "Push gem"
+task :push => :build do
+  system "gem push pkg/#{gemspec.name}-#{gemspec.version}.gem"
+end
+
 desc "Clean automatically generated files"
 task :clean do
   FileUtils.rm_rf "pkg"
