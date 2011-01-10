@@ -1,0 +1,15 @@
+GEM
+  remote: http://rubygems.org/
+  specs:
+    amqp (0.6.7)
+      eventmachine (>= 0.12.4)
+    eventmachine (0.12.10)
+    xmpp4r (0.5)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  amqp
+  eventmachine
+  xmpp4r

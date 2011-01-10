@@ -1,10 +1,17 @@
-require 'yaml'
-require 'logger'
-require 'xmpp4r'
+# omnibot
+
+require "rubygems"
+require "bundler/setup"
+
 require 'amqp'
 require 'mq'
+require 'eventmachine'
+require 'xmpp4r'
 require 'xmpp4r/client'
 require 'xmpp4r/roster'
+
+require 'yaml'
+require 'logger'
 
 include Jabber
 Jabber::debug = false
