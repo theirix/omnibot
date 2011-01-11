@@ -3,8 +3,11 @@ module OmniBot
 	class OmniSend
 
 		def start args
-			return 1 if args.empty? 
-			message = args.join(' ')
+			if args.empty? 
+				message = STDIN.readlines.join
+			else
+				message = args.join(' ')
+			end
 			puts "Sending message #{message}"
 			data = Marshal.dump(message)
 
