@@ -96,8 +96,15 @@ module OmniBot
 		def check_presence? presence
 			raise 'No subscriber' unless @subscriber
 
-			OmniLog::debug "Subscriber #{@subscriber} is #{presence.show ? presence.show : 'online'}" 
-			presence.show == nil || presence.show == :chat
+			if presence.type == nil
+				OmniLog::debug "Subscriber status #{presence.show ? presence.show : 'online'}"
+				return presence.show == nil || presence.show == :chat
+			elsif presence.type == :unavailable
+				OmniLog::debug "Subscriber goes offline"
+				return false
+			else
+				return false
+			end
 		end
 
 		def say_when_human orig, now
