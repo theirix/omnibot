@@ -115,7 +115,7 @@ module OmniBot
 				elsif amount < 60*60
 					return "less than a hour ago"
 				elsif amount < 60*60*6
-					return amount.div(60).to_s + " hours ago"
+					return amount.div(3600).to_s + " hours ago"
 				end
 			end
 			return orig.to_s
