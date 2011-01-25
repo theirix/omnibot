@@ -47,12 +47,14 @@ module OmniBot
 		end
 
 		def on_generic_exception_handler e
-			if e && (e.kind_of?(Jabber::ServerDisconnected) || e.class.to_s =~ /^Errno::.+/)
+			if e && (e.kind_of?(Jabber::ServerDisconnected) || e.class.to_s =~ /^Errno::.+/ || e.kind_of?(SocketError))
 				OmniLog::error "No timer provider assigned" unless @timer_provider
 				# attempt counter is set when it's needed to connect
 				unless @ignore_reconnect
 					@timer_provider.add_timer(@reconnect_pause) { try_reconnect }
 				end
+			else
+				OmniLog::warn "Ignoring error #{e}"
 			end
 		end
 

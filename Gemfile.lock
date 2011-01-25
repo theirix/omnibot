@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    omnibot (0.0.4)
+    omnibot (0.0.5)
       amqp
       eventmachine
       xmpp4r
