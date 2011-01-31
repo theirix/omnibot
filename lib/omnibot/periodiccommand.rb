@@ -29,7 +29,8 @@ module OmniBot
 
 		def start
 			now = Time.now
-			next_report_time = Time.local(now.year, now.month, now.day+1, 1, 0, 0)
+			tomorrow = DateTime.now+1
+			next_report_time = Time.local(tomorrow.year, tomorrow.month, tomorrow.day, 1, 0, 0)
 			next_report_time = next_report_time + @pause
 			@timer_provider.add_timer(next_report_time - now) { on_first_timer }
 		end
