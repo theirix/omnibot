@@ -1,14 +1,14 @@
 PATH
   remote: .
   specs:
-    omnibot (0.0.6)
+    omnibot (0.0.7)
       amqp
       eventmachine
       xmpp4r
 
 GEM
   specs:
-    amqp (0.6.7)
+    amqp (0.7.1)
       eventmachine (>= 0.12.4)
     eventmachine (0.12.10)
     xmpp4r (0.5)
@@ -17,7 +17,4 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  amqp
-  eventmachine
   omnibot!
-  xmpp4r
