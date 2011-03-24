@@ -19,6 +19,7 @@ module OmniBot
 			OmniLog::debug "Presence changed:\n...old #{dump_presence old_presence}\n...new #{dump_presence new_presence}"
 			if is_needed_user? old_presence.from
 				@subscriber_online = check_presence? old_presence
+				@subscriber_concrete_jid = old_presence.from
 				OmniLog::debug "Subscriber #{@subscriber} is #{@subscriber_online ? "ready" : "not ready"}"
 				pump_messages if @subscriber_online
 			end
@@ -148,6 +149,7 @@ module OmniBot
 
 			@messages = []
 			@subscriber_online = false
+			@subscriber_concrete_jid = nil
 
 			@client.on_exception { |e, stream, sym_where| on_exception_handler(e, stream, sym_where) }
 			@client.add_message_callback { |m| on_message_handler m }
@@ -179,6 +181,7 @@ module OmniBot
 
 		def send message
 			raise 'Not connected' unless @client.is_connected?
+			raise 'No concrete jid' unless @subscriber_concrete_jid
 
 			OmniLog::info "Sending a message..."
 			orig = message[0]
@@ -187,7 +190,7 @@ module OmniBot
 			body = "Omnibot reported " + say_when_human(orig, Time.now) + ":\n" + content.to_s
 			OmniLog::debug body
 
-			msg = Jabber::Message::new(@subscriber, body)
+			msg = Jabber::Message::new(@subscriber_concrete_jid, body)
 			msg.type = :chat
 			@client.send(msg)
 		end
