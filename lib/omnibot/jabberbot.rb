@@ -22,6 +22,11 @@ module OmniBot
 				@subscriber_concrete_jid = old_presence.from
 				OmniLog::debug "Subscriber #{@subscriber} is #{@subscriber_online ? "ready" : "not ready"}"
 				pump_messages if @subscriber_online
+
+				unless @greeting_done
+					@greeting_done = true
+					add_message [Time.now, 'Hello, I am online']
+				end
 			end
 		end
 
