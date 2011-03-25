@@ -14,7 +14,7 @@ module OmniBot
 			Signal.trap('INT') { AMQP.stop{ EM.stop } }
 
 			AMQP.start do
-				mq = MQ.new
+				mq = AMQP::Channel.new
 				exchange = mq.direct(Helpers::amqp_exchange_name)
 				exchange.publish(data)
 				puts 'sent'

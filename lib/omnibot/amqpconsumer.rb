@@ -17,7 +17,7 @@ module OmniBot
 
 		def amqp_loop
 			# setup amqp
-			mq = MQ.new
+			mq = AMQP::Channel.new
 			exchange = mq.direct(Helpers::amqp_exchange_name)
 			queue = mq.queue("omnibot-consumerqueue", :exclusive => true)
 			queue.bind(exchange)
