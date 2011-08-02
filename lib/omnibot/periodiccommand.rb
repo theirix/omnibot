@@ -13,8 +13,10 @@ module OmniBot
 			OmniLog::info "Reporting command #{@command}"
 			body = `#{@command}`
 			raise 'Error launching command ' if $? != 0
-			message_body = "Results of daily executed command #{@command}:\n" + body
-			@jabber_messenger.call message_body
+			if body.strip != '' 
+			  message_body = "Results of daily executed command #{@command}:\n" + body
+			  @jabber_messenger.call message_body
+			end			
 		end
 
 	public
