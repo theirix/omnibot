@@ -1,15 +1,15 @@
 PATH
   remote: .
   specs:
-    omnibot (0.0.7)
+    omnibot (0.0.9)
       amqp
       eventmachine
       xmpp4r
 
 GEM
   specs:
-    amqp (0.7.1)
-      eventmachine (>= 0.12.4)
+    amqp (0.7.4)
+      eventmachine
     eventmachine (0.12.10)
     xmpp4r (0.5)
 
