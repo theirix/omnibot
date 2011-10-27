@@ -1,3 +1,5 @@
+require 'bundler'
+
 Gem::Specification.new do |s| 
   s.name         = "omnibot"
   s.summary      = "Simple XMPP bot for server monitoring"
@@ -7,7 +9,7 @@ Gem::Specification.new do |s|
   s.requirements = 
       [ 'AMQP-compatible server (for example, RabbitMQ)' ]
 
-	require "lib/#{s.name}/version.rb"
+	require File.join(File.dirname(__FILE__),"lib/#{s.name}/version.rb")
   s.version     = OmniBot::VERSION
   s.author      = "theirix"
   s.email       = "theirix@gmail.com"
