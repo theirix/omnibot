@@ -5,7 +5,6 @@ module OmniBot
 		include LoggedCommand
 
 		def on_first_timer
-			OmniLog::debug "Okay, it's near of midnight"
 			on_periodic_timer
 			@timer_provider.add_periodic_timer(3600) { on_periodic_timer }
 		end
@@ -18,27 +17,47 @@ module OmniBot
 		end
 
 		def match_conditions m
-			%w{ subject from to cc date}.any? { |condition| match_condition m, condition }
+			@conditions.empty? || %w{ subject from to cc date}.any? { |condition| match_condition m, condition }
 		end
 
 		def on_periodic_timer
-			OmniLog::info "Checking mail #{@mail_config['address']}"
-			Mail.all.each do |m|
-				OmniLog::info "   look at message from #{m.from} about #{m.subject}"
-				handle_message(m) if match_conditions m
+			begin
+				OmniLog::info "Checking mail #{@address}"
+				is_new_mail = false
+				Mail.all.each do |m|
+					rows = @db.execute "select message from received_messages where account=? and message=?", @address, m.message_id
+						
+					if rows.empty?
+						is_new_mail = true
+						OmniLog::info "New message from #{m.from} about #{m.subject}; id #{m.message_id}"
+						if match_conditions m
+							handle_message(m) 
+						end
+						@db.execute "insert into received_messages values(?, ?, ?)", @address, m.message_id, m.date.to_s
+					end
+				end
+				OmniLog::info "No new mail" unless is_new_mail
+			rescue => e
+				OmniLog::error "MailChecker error: #{e.message}\ntrace:\n#{Helpers::backtrace e}"
 			end
 		end
 
 		def handle_message m
 			OmniLog::info "Matched " + m.inspect.to_s
-			attached = m.attachments.find { |a| a.mime_type =~ /application\/x-zip.*/ }
+			attached = m.attachments.find { |a| a.mime_type =~ /application\/(zip|x-zip|rar|x-rar).*/ }
 			if attached
 				Dir.mktmpdir('omniatt') do |tmpdir|
 					filename = tmpdir + '/' + attached.filename
 					OmniLog::info "Writing attachment to #{filename}"
 					File.open(filename,'w') { |f| f.write attached.read }
 					Dir.chdir(@unpack_to) do
-						system("unzip -oq '#{filename}'")
+						if filename =~ /\.zip$/
+							system("unzip -oq '#{filename}'")
+						elsif filename =~ /\.rar$/
+							system("unrar x -y '#{filename}'")
+						else
+							raise "Wrong filetype"
+						end
 						raise "Error extracting file #{filename} to #{@unpack_to}" if $? != 0
 					end
 					  
@@ -66,13 +85,14 @@ module OmniBot
 		attr_writer :timer_provider
 		attr_writer :startup_pause
 
-		def initialize mail_config, trigger_config 
+		def initialize mail_config, trigger_config, db
 			@startup_pause = 0
 			@mail_config = mail_config
-			@conditions = trigger_config['if']
+			@db = db
+			@conditions = (trigger_config['if'] or {})
 			@unpack_to = trigger_config['unpack_to']
 			@command_post = trigger_config['command_post']
-			@send_to = trigger_config['send_to']
+			@address = trigger_config['for']
 
 			mailhash = yaml_to_mailhash(mail_config)
 			Mail.defaults do
@@ -84,7 +104,7 @@ module OmniBot
 		end
 		
 		def to_s
-			"Mail checker for #{@send_to}"
+			"Mail checker for #{@address}"
 		end
 
 		def start

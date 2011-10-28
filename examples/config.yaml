@@ -4,7 +4,7 @@ config:
   notifyjid: owner@example.com
   notifyresource: Adium.*
   periodiccommands: [ 'vnstat' ]
-	logpath: '/tmp/omnibot.log'
+	#logpath: '/tmp/omnibot.log'
   mails:
     - user: foobar@example.com
       password: secret

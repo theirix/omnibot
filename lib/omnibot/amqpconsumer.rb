@@ -4,6 +4,7 @@ module OmniBot
 	class AMQPConsumer
 
 		attr_accessor :handlers
+		attr_accessor :db
 
 		def send_message message
 			begin
@@ -39,7 +40,7 @@ module OmniBot
 					handler.start
 				end
 
-			rescue Object => e
+			rescue => e
 				OmniLog::error "Sending message error: #{e.message}\ntrace:\n#{Helpers::backtrace e}\nExiting..."
 				AMQP.stop{ EM.stop }
 			end

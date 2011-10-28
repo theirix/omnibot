@@ -7,7 +7,7 @@ module OmniBot
 				@jabber_messenger.call "#{banner} command #{command} failed with an error #{$?}:\n" + body
 			end
 			if body.strip != '' 
-				@jabber_messenger.call "#{banner} command #{command_str} succeeded with:\n" + body
+				@jabber_messenger.call "#{banner} command #{command} succeeded with:\n" + body
 			end			
 		end
 

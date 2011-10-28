@@ -4,6 +4,8 @@ OmniBot
 Simple XMPP bot for server monitoring.
 Works with AMQP for sending messages at server side.
 Sends notifications to a user via XMPP.
+Checks e-mail and extracts attachments to a specified
+directory.
 
 Dependencies
 ------------
@@ -12,6 +14,8 @@ Dependencies
  * amqp 
  * xmpp4r 
  * eventmachine
+ * mail
+ * sqlite3
 
 Installation
 ------------
@@ -28,4 +32,4 @@ Send messages to omnibot by AMQP by running:
 Support
 -------
 
-Tested on Mac OS X 10.6 with Ruby 1.8
+Tested with ruby 1.8.6 and 1.9.2, rabbitmq as an AMQP server, at OS X 10.6 and Debian Linux.

@@ -6,14 +6,17 @@ module OmniBot
 		include OmniBot::LoggedCommand
 
 		def on_first_timer
-			OmniLog::debug "Okay, it's near of midnight"
 			on_periodic_timer
 			@timer_provider.add_periodic_timer(24*3600) { on_periodic_timer }
 		end
 
 		def on_periodic_timer
-			OmniLog::info "Reporting command #{@command}"
-			jabber_logged_command 'Periodic command', @command
+			begin
+				OmniLog::info "Reporting command #{@command}"
+				jabber_logged_command 'Periodic command', @command
+			rescue => e
+				OmniLog::error "PeriodicCommand error: #{e.message}\ntrace:\n#{Helpers::backtrace e}"
+			end
 		end
 
 	public

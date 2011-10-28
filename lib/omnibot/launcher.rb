@@ -9,22 +9,32 @@ module OmniBot
 			raise 'No config file found, checked command line and ~/.omnibot.yaml'
 		end
 
+		def ensure_omnidir
+			path = ENV['HOME']+'/.omnibot'
+			FileUtils.mkdir path unless File.directory? path unless File.directory? path
+			path
+		end
+
 		def get_log_path config
 			return config['logpath'] unless (config['logpath'] or '').empty?
-			return '/var/log/omnibot.log' if File.directory? '/var/log/'
-			return 'omnibot.log'
+			ensure_omnidir + '/omnibot.log' 
 		end
 
-		def get_store config
-			store_path = config['storepath']
-			unless File.directory? store_path
-				store_path = ENV['HOME']+'/.omnibot'
-				FileUtils.mkdir store_path unless File.directory? store_path
+		def get_db 
+			db = SQLite3::Database.new(ensure_omnidir + '/omnibot.sqlite3')
+			if db.execute("select * from sqlite_master where type='table' and name='received_messages'").empty?
+				db.execute <<-SQL
+					create table received_messages (
+						account TEXT,
+						message TEXT,
+						date TEXT
+					);
+				SQL
 			end
-			store_path + '/omnibot.store'
+			db
 		end
 
-		def provide_handlers config
+		def provide_handlers config, db
 			periodic_commands = ([config['periodiccommands']].flatten or [])
 			
 			mails = ([config['mails']].flatten or [])
@@ -42,7 +52,7 @@ module OmniBot
 				end +
 				mail_triggers.map do |trigger|
 					mail = mails.find { |m| m['user'] == trigger['for'] }
-					MailChecker.new mail, trigger
+					MailChecker.new mail, trigger, db
 				end
 		end
 
@@ -56,8 +66,10 @@ module OmniBot
 			OmniLog::log = Logger.new(log_path) 
 			OmniLog::log.level = Logger::DEBUG
 
+			db = get_db 
 			consumer = AMQPConsumer.new config
-			consumer.handlers = provide_handlers(config)
+			consumer.db = db
+			consumer.handlers = provide_handlers(config, db)
 			consumer.start 
 
 			OmniLog::log.close
