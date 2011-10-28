@@ -3,6 +3,8 @@ module OmniBot
 	# AMQP consumer class
 	class AMQPConsumer
 
+		attr_accessor :handlers
+
 		def send_message message
 			begin
 				@omnibot.add_message [Time.now, message]
@@ -29,14 +31,12 @@ module OmniBot
 				@omnibot.set_subscriber Jabber::JID::new(@config['notifyjid']), @config['notifyresource']
 				@omnibot.connect
 
-				pause = 0
-				[@config['periodiccommands']].flatten.each do |command|
-					OmniLog::info "Setup command #{command}..."
-					periodic_command = PeriodicCommand.new command, pause
-					periodic_command.timer_provider = EM
-					periodic_command.set_jabber_messenger { |message| send_message message }
-					periodic_command.start
-					pause += 20
+				@handlers.each_with_index do |handler, index|
+					OmniLog::info "Setup handler #{handler.to_s}..."
+					handler.timer_provider = EM
+					handler.set_jabber_messenger { |message| send_message message }
+					handler.startup_pause = index*10
+					handler.start
 				end
 
 			rescue Object => e

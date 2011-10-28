@@ -25,6 +25,11 @@ task :install => :build do
   system "gem install pkg/#{gemspec.name}-#{gemspec.version}"
 end
 
+desc "Install gem locally without documentation"
+task :install_nodoc => :build do
+  system "gem install pkg/#{gemspec.name}-#{gemspec.version} --no-rdoc --no-ri"
+end
+
 desc "Push gem"
 task :push => :build do
   system "gem push pkg/#{gemspec.name}-#{gemspec.version}.gem"

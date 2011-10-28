@@ -5,3 +5,16 @@ config:
   notifyresource: Adium.*
   periodiccommands: [ 'vnstat' ]
 	logpath: '/tmp/omnibot.log'
+  mails:
+    - user: foobar@example.com
+      password: secret
+      host: pop.example.com
+      port: 995
+      ssl: true
+  mailtriggers:
+    - action: unpack
+      for: omni.notify@mail.ru
+      if:
+        subject: '^Weekly archive.*'
+      unpack_to: '/tmp/'
+      command_post: 'post-mail'
