@@ -20,7 +20,7 @@ module OmniBot
 
 		def amqp_loop
 			AMQP.start do |connection|
-				OmniLog::info "Setup amqp gem #{AMQP::VERSION}, AMQP protocol #{AMQP::Protocol::VERSION}..."
+				OmniLog::info "Setup amqp gem #{AMQP::VERSION}, AMQP protocol #{AMQ::Protocol::VERSION}..."
 				mq = AMQP::Channel.new(connection)
 				exchange = mq.direct(Helpers::amqp_exchange_name)
 				queue = mq.queue('', :exclusive => true).bind(exchange, :routing_key => Helpers::amqp_routing_key)
