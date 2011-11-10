@@ -57,6 +57,10 @@ module OmniBot
 		def self.amqp_exchange_name
 			'omnibot-exchange'
 		end
+		
+		def self.amqp_routing_key
+			'omnibot-routing'
+		end
 
 	end
 

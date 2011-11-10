@@ -22,7 +22,8 @@ Gem::Specification.new do |s|
   s.required_ruby_version = '>=1.8'
 	s.rubyforge_project = 'nowarning'
 
-	%w[ xmpp4r eventmachine amqp mail sqlite3 ].each do |dep|
+	%w[ xmpp4r eventmachine mail sqlite3 ].each do |dep|
 		s.add_dependency(dep)
 	end
+	s.add_dependency('amqp', '>= 0.8.0')
 end

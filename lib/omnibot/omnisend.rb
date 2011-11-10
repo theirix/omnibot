@@ -13,12 +13,11 @@ module OmniBot
 
 			Signal.trap('INT') { AMQP.stop{ EM.stop } }
 
-			AMQP.start do
-				mq = AMQP::Channel.new
+			AMQP.start do |connection|
+				mq = AMQP::Channel.new(connection)
 				exchange = mq.direct(Helpers::amqp_exchange_name)
-				exchange.publish(data)
-				puts 'sent'
-				AMQP.stop{ EM.stop }
+				exchange.publish(data, :routing_key => Helpers::amqp_routing_key)
+				EM.add_timer(2.0) { connection.close { puts 'sent' ; EM.stop } }
 			end
 		end
 	end

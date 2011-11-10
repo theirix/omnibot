@@ -19,13 +19,12 @@ module OmniBot
 		end
 
 		def amqp_loop
-			# setup amqp
-			mq = AMQP::Channel.new
-			exchange = mq.direct(Helpers::amqp_exchange_name)
-			queue = mq.queue("omnibot-consumerqueue", :exclusive => true)
-			queue.bind(exchange)
+			AMQP.start do |connection|
+				OmniLog::info "Setup amqp gem #{AMQP::VERSION}, AMQP protocol #{AMQP::Protocol::VERSION}..."
+				mq = AMQP::Channel.new(connection)
+				exchange = mq.direct(Helpers::amqp_exchange_name)
+				queue = mq.queue('', :exclusive => true).bind(exchange, :routing_key => Helpers::amqp_routing_key)
 
-			begin
 				OmniLog::info "Setup omnibot..."
 				@omnibot = JabberBot.new(Jabber::JID::new(@config['omnibotuser']), @config['omnibotpass'])
 				@omnibot.timer_provider = EM
@@ -39,18 +38,20 @@ module OmniBot
 					handler.startup_pause = index*10
 					handler.start
 				end
+			
+				OmniLog::info "==== AMQP is ready ===="
 
-			rescue => e
-				OmniLog::error "Sending message error: #{e.message}\ntrace:\n#{Helpers::backtrace e}\nExiting..."
-				AMQP.stop{ EM.stop }
+				queue.subscribe do |msg|
+					message = Marshal.load msg
+					send_message message
+				end
+
 			end
 
-			OmniLog::info "==== AMQP is ready ===="
-
-			queue.subscribe do |msg|
-				message = Marshal.load msg
-				send_message message
-			end
+		# it is a function rescue block, don't be afraid
+		rescue => e
+			OmniLog::error "AMQP/Jabber setup error: #{e.message}\ntrace:\n#{Helpers::backtrace e}\nExiting..."
+			AMQP.stop{ EM.stop }
 		end
 
 		# Main AMQP loop
@@ -62,10 +63,8 @@ module OmniBot
 				AMQP.stop{ EM.stop }
 			end
 
-			AMQP.start do
-				amqp_loop
-			end
-
+			amqp_loop
+			
 			OmniLog::info "Exited"
 		end
 
