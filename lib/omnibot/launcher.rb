@@ -35,10 +35,10 @@ module OmniBot
 		end
 
 		def provide_handlers config, db
-			periodic_commands = ([config['periodiccommands']].flatten or [])
+			periodic_commands = [config['periodiccommands']].flatten.compact
 			
-			mails = ([config['mails']].flatten or [])
-			mail_triggers = ([config['mailtriggers']].flatten or [])
+			mails = [config['mails']].flatten.compact
+			mail_triggers = [config['mailtriggers']].flatten.compact
 			mail_triggers.each do |mt|
 				raise 'No mail found for a trigger' unless mails.find { |m| m['user'] == mt['for'] }
 				raise 'Not supported action' unless mt['action'] == 'unpack'
