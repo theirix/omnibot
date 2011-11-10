@@ -1,3 +1,5 @@
+# encoding: utf-8
+
 module OmniBot
 
 	# Send to jabber user result of a daily command

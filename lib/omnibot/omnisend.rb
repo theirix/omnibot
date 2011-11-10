@@ -1,3 +1,5 @@
+# encoding: utf-8
+
 module OmniBot
 
 	class OmniSend
@@ -9,7 +11,7 @@ module OmniBot
 				message = args.join(' ')
 			end
 			puts "Sending message #{message}"
-			data = Marshal.dump(message)
+			data = Base64.encode64(Marshal.dump(message))
 
 			Signal.trap('INT') { AMQP.stop{ EM.stop } }
 

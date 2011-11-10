@@ -19,7 +19,7 @@ Gem::Specification.new do |s|
   s.executables = Dir.glob('bin/*').map { |executable| File.basename executable } 
   s.test_files  = []
   s.has_rdoc    = false
-  s.required_ruby_version = '>=1.8'
+  s.required_ruby_version = '>=1.9'
 	s.rubyforge_project = 'nowarning'
 
 	%w[ xmpp4r eventmachine mail sqlite3 ].each do |dep|

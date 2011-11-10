@@ -1,3 +1,5 @@
+# encoding: utf-8
+
 module OmniBot
 
 	# AMQP consumer class
@@ -42,7 +44,7 @@ module OmniBot
 				OmniLog::info "==== AMQP is ready ===="
 
 				queue.subscribe do |msg|
-					message = Marshal.load msg
+					message = Marshal.load(Base64.decode64(msg)).force_encoding('UTF-8')
 					send_message message
 				end
 
