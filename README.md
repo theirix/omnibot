@@ -32,4 +32,4 @@ Send messages to omnibot by AMQP by running:
 Support
 -------
 
-Tested with ruby 1.8.6 and 1.9.2, rabbitmq as an AMQP server, at OS X 10.6 and Debian Linux.
+Tested with ruby 1.8.6, 1.9 and 2.0, rabbitmq as an AMQP server, at OS X 10.6+ and Debian Linux.
