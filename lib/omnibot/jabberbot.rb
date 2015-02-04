@@ -37,7 +37,7 @@ module OmniBot
 		end
 
 		def on_exception_handler e, stream, sym_where
-			OmniLog::error "Jabber exception happens at symbol \"#{sym_where}\": #{e}\nbacktrace\n#{Helpers::backtrace e}"
+			OmniLog::error "Jabber exception of #{e ? e.class : nil} happens at symbol \"#{sym_where}\": #{e}\nbacktrace\n#{Helpers::backtrace e}"
 			OmniLog::debug "stream is #{stream} vs client #{@client}"
 			on_generic_exception_handler e
 		end
@@ -56,6 +56,7 @@ module OmniBot
 
 		def on_generic_exception_handler e
 			if e && (e.kind_of?(Jabber::ServerDisconnected) || e.class.to_s =~ /^Errno::.+/ || e.kind_of?(SocketError))
+				OmniLog::warn "Looking to error, ign=#{@ignore_reconnect}, tp=#{@timer_provider}"
 				OmniLog::error "No timer provider assigned" unless @timer_provider
 				# attempt counter is set when it's needed to connect
 				unless @ignore_reconnect
@@ -74,6 +75,7 @@ module OmniBot
 		end
 
 		def try_reconnect
+			OmniLog::debug "Called try_reconnect, #{@client.inspect}, #{@client.is_connected?}"
 			return if @client.is_connected?
 
 			OmniLog::debug 'Called try_reconnect'

@@ -15,6 +15,8 @@ require 'socket'
 require 'date'
 require 'tmpdir'
 
+require "xray/thread_dump_signal_handler"
+
 # patch from https://github.com/ln/xmpp4r/issues/3
 
 if RUBY_VERSION < "1.9"
