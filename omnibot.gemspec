@@ -24,9 +24,9 @@ Gem::Specification.new do |s|
 	s.rubyforge_project = 'nowarning'
 	s.license = "BSD"
 
-	s.add_dependency('amqp', '~> 1.0.0' )
-	s.add_dependency('xmpp4r')
-	s.add_dependency('eventmachine', '~> 1.0.3')
-	s.add_dependency('mail', '~> 2.5.4')
-	s.add_dependency('sqlite3', '~> 1.3.7')
+	s.add_runtime_dependency('amqp', '~> 1.0.0' )
+	s.add_runtime_dependency('xmpp4r', '~> 0.5.0')
+	s.add_runtime_dependency('eventmachine', '~> 1.0.3')
+	s.add_runtime_dependency('mail', '~> 2.5.4')
+	s.add_runtime_dependency('sqlite3', '~> 1.3.7')
 end
