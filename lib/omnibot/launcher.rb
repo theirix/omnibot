@@ -5,13 +5,13 @@ module OmniBot
   class Launcher
     def get_config_path(args)
       return args[0] if args[0] && File.file?(args[0])
-      path = File.join(ENV['HOME'], '.omnibot.yaml')
-      return path if ENV['HOME'] && File.file?(path)
-      raise 'No config file found, checked command line and ~/.omnibot.yaml'
+      path = ENV['HOME'] + '/.local/share/omnibot/omnibot.yaml'
+      return path if File.file?(path)
+      raise 'No config file found, checked command line and ~/.local/share/omnibot/omnibot.yaml'
     end
 
     def ensure_omnidir
-      path = ENV['HOME'] + '/.omnibot'
+      path = ENV['HOME'] + '/.local/share/omnibot'
       FileUtils.mkdir path unless File.directory? path
       path
     end
