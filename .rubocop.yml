@@ -1,0 +1,23 @@
+AllCops:
+  DisplayCopNames: true
+
+Documentation:
+  Enabled: false
+
+Style/SignalException:
+  Enabled: false
+
+Style/ColonMethodCall:
+  Enabled: false
+
+Style/ClassAndModuleChildren:
+  Enabled: false
+
+Style/SingleLineMethods:
+  Enabled: false
+
+Style/SpecialGlobalVars:
+  Enabled: false
+
+Style/GuardClause:
+  Enabled: false

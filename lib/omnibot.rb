@@ -16,47 +16,45 @@ require 'date'
 require 'tmpdir'
 require 'retryable'
 
-require "xray/thread_dump_signal_handler"
+require 'xray/thread_dump_signal_handler'
 
 # patch from https://github.com/ln/xmpp4r/issues/3
 
-if RUBY_VERSION < "1.9"
+if RUBY_VERSION < '1.9'
 # ...
 else
-	# Encoding patch
-	require 'socket'
-	class TCPSocket
-		def external_encoding
-			Encoding::BINARY
-		end
-	end
+  # Encoding patch
+  require 'socket'
+  class TCPSocket
+    def external_encoding
+      Encoding::BINARY
+    end
+  end
 
-	require 'rexml/source'
-	class REXML::IOSource
-		alias_method :encoding_assign, :encoding=
-			def encoding=(value)
-				encoding_assign(value) if value
-			end
-	end
+  require 'rexml/source'
+  class REXML::IOSource
+    alias_method :encoding_assign, :encoding=
+    def encoding=(value)
+      encoding_assign(value) if value
+    end
+  end
 
-	begin
-		# OpenSSL is optional and can be missing
-		require 'openssl'
-		class OpenSSL::SSL::SSLSocket
-			def external_encoding
-				Encoding::BINARY
-			end
-		end
-	rescue
-	end
+  begin
+    # OpenSSL is optional and can be missing
+    require 'openssl'
+    class OpenSSL::SSL::SSLSocket
+      def external_encoding
+        Encoding::BINARY
+      end
+    end
+  rescue # rubocop:disable Lint/HandleExceptions
+  end
 end
 
 # -----------------
 
 module OmniBot
-
-	%w[ helpers jabberbot amqpconsumer omnisend launcher loggedcommand periodiccommand mailchecker ].each do |file|
-		require "omnibot/#{file}.rb"
-	end
-
+  %w( helpers jabberbot amqpconsumer omnisend launcher loggedcommand periodiccommand mailchecker ).each do |file|
+    require "omnibot/#{file}.rb"
+  end
 end
