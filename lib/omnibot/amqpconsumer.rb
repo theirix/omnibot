@@ -23,6 +23,12 @@ module OmniBot
 		def amqp_loop
 			AMQP.start do |connection|
 				OmniLog::info "Setup amqp gem #{AMQP::VERSION}, AMQP protocol #{AMQ::Protocol::VERSION}..."
+
+				connection.on_tcp_connection_loss do |conn, settings|
+					OmniLog::info "[network failure] Trying to reconnect..."
+					conn.reconnect(false, 30)
+				end
+
 				mq = AMQP::Channel.new(connection)
 				exchange = mq.direct(Helpers::amqp_exchange_name)
 				queue = mq.queue('', :exclusive => true).bind(exchange, :routing_key => Helpers::amqp_routing_key)
@@ -50,10 +56,6 @@ module OmniBot
 
 			end
 
-		# it is a function rescue block, don't be afraid
-		rescue => e
-			OmniLog::error "AMQP/Jabber setup error: #{e.message}\ntrace:\n#{Helpers::backtrace e}\nExiting..."
-			AMQP.stop{ EM.stop }
 		end
 
 		# Main AMQP loop
@@ -65,8 +67,16 @@ module OmniBot
 				AMQP.stop{ EM.stop }
 			end
 
-			amqp_loop
-			
+			begin
+				exception_cb = Proc.new { |e| OmniLog::error "Cannot connect to AMQP: #{e.message}" }
+				Retryable.retryable(tries: 5, sleep: lambda { |n| 3**n }, exception_cb: exception_cb, on: AMQP::TCPConnectionFailed) do
+					amqp_loop
+				end
+			rescue => e
+				OmniLog::error "AMQP/Jabber setup error: #{e.message}\ntrace:\n#{Helpers::backtrace e}\nExiting..."
+				AMQP.stop{ EM.stop }
+			end
+
 			OmniLog::info "Exited"
 		end
 

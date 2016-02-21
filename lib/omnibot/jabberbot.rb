@@ -17,8 +17,8 @@ module OmniBot
 			jid.strip == @subscriber && @subscriber_resource.match((jid.resource or ''))
 		end
 
-		def on_presence_callback old_presence, new_presence
-			OmniLog::debug "Presence changed:\n...old #{dump_presence old_presence}\n...new #{dump_presence new_presence}"
+		def on_presence_callback old_presence, _new_presence
+			#OmniLog::debug "Presence changed:\n...old #{dump_presence old_presence}\n...new #{dump_presence new_presence}"
 			if is_needed_user? old_presence.from
 				@subscriber_online = check_presence? old_presence
 				@subscriber_concrete_jid = old_presence.from

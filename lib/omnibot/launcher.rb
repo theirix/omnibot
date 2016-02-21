@@ -72,7 +72,7 @@ module OmniBot
 			consumer = AMQPConsumer.new config
 			consumer.db = db
 			consumer.handlers = provide_handlers(config, db)
-			consumer.start 
+			consumer.start
 
 			OmniLog::log.close
 		end

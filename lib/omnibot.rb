@@ -14,6 +14,7 @@ require 'sqlite3'
 require 'socket'
 require 'date'
 require 'tmpdir'
+require 'retryable'
 
 require "xray/thread_dump_signal_handler"
 
